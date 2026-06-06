@@ -5,7 +5,7 @@ const cors = require('cors');
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.static('.'));
 
 // ── Proxy genérico para Shopify Admin API ──
 app.get('/api/shopify/:endpoint(*)', async (req, res) => {
