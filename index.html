@@ -531,10 +531,11 @@
       <div class="setup-title">🔗 Conexión Shopify</div>
       <div class="input-group">
         <label class="input-label">NOMBRE DE TIENDA</label>
-        <input class="input-field" id="store-name" placeholder="wargo-sports (sin .myshopify.com)" />
+        <input class="input-field" id="store-name" placeholder="mi-tienda (sin .myshopify.com)" />
       </div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6;">
-        Serás redirigido a Shopify para autorizar el acceso de forma segura.
+      <div class="input-group">
+        <label class="input-label">TOKEN DE ACCESO API ADMIN</label>
+        <input class="input-field" id="api-token" placeholder="shpat_xxxxxxxxxxxx" type="password" />
       </div>
       <button class="btn btn-primary" onclick="connectShopify()">
         <span id="connect-btn-text">Conectar Shopify</span>
@@ -626,6 +627,7 @@ if (saved) {
   state.storeName = cfg.storeName;
   state.token = cfg.token;
   document.getElementById('store-name').value = cfg.storeName;
+  document.getElementById('api-token').value = cfg.token;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -662,7 +664,7 @@ function setConnected(yes, storeName) {
 // ═══════════════════════════════════════════════════════
 //  SHOPIFY VIA BACKEND PROXY
 // ═══════════════════════════════════════════════════════
-const BACKEND = 'https://stockflow-production-822a.up.railway.app';
+const BACKEND = 'https://stockflow-production-822a.up.railway.app'; // mismo servidor
 
 async function shopifyViaProxy(storeName, token, endpoint) {
   const url = `${BACKEND}/api/shopify/${endpoint}?storeName=${storeName}&token=${token}`;
@@ -673,66 +675,27 @@ async function shopifyViaProxy(storeName, token, endpoint) {
 
 async function connectShopify() {
   const name = document.getElementById('store-name').value.trim();
-  if (!name) { showAlert('Ingresa el nombre de tu tienda', 'error'); return; }
+  const token = document.getElementById('api-token').value.trim();
+  if (!name || !token) { showAlert('Completa nombre de tienda y token', 'error'); return; }
 
   const btn = document.getElementById('connect-btn-text');
   btn.innerHTML = '<span class="spinner"></span>Conectando...';
 
-  // Primero intentar obtener token guardado en el servidor
   try {
-    const res = await fetch(`${BACKEND}/api/token?shop=${name}`);
-    if (res.ok) {
-      const data = await res.json();
-      if (data.token) {
-        state.storeName = name;
-        state.token = data.token;
-        state.connected = true;
-        localStorage.setItem('stockflow_config', JSON.stringify({storeName: name}));
-        const shopData = await shopifyViaProxy(name, data.token, 'shop.json');
-        setConnected(true, shopData.shop?.name || name);
-        showAlert('✅ Tienda conectada: ' + (shopData.shop?.name || name));
-        await loadInventory();
-        await loadOrders();
-        btn.textContent = 'Conectar Shopify';
-        return;
-      }
-    }
-  } catch(e) {}
-
-  // Si no hay token, iniciar flujo OAuth
-  btn.textContent = 'Conectar Shopify';
-  window.location.href = `${BACKEND}/auth?shop=${name}.myshopify.com`;
-}
-
-// Detectar si volvió del OAuth callback
-(async function checkOAuthReturn() {
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('connected') === 'true') {
-    const shop = params.get('shop');
-    if (shop) {
-      document.getElementById('store-name').value = shop;
-      try {
-        const res = await fetch(`${BACKEND}/api/token?shop=${shop}`);
-        if (res.ok) {
-          const data = await res.json();
-          state.storeName = shop;
-          state.token = data.token;
-          state.connected = true;
-          localStorage.setItem('stockflow_config', JSON.stringify({storeName: shop}));
-          const shopData = await shopifyViaProxy(shop, data.token, 'shop.json');
-          setConnected(true, shopData.shop?.name || shop);
-          showAlert('✅ Tienda conectada exitosamente');
-          await loadInventory();
-          await loadOrders();
-        }
-      } catch(e) {
-        showAlert('Error al finalizar conexión', 'error');
-      }
-      // Limpiar URL
-      window.history.replaceState({}, '', '/');
-    }
+    const data = await shopifyViaProxy(name, token, 'shop.json');
+    state.storeName = name;
+    state.token = token;
+    state.connected = true;
+    localStorage.setItem('stockflow_config', JSON.stringify({storeName:name, token}));
+    setConnected(true, data.shop?.name || name);
+    showAlert('✅ Tienda conectada: ' + (data.shop?.name || name));
+    await loadInventory();
+    await loadOrders();
+  } catch(e) {
+    showAlert('⚠️ Error al conectar. Verifica el nombre de tienda y token.', 'error');
   }
-})();
+  btn.textContent = 'Conectar Shopify';
+}
 
 function disconnect() {
   state.connected = false;
