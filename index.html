@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>StockFlow — Gestión de Inventario</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --card: #1c1c26;
+    --border: #2a2a3a;
+    --accent: #00e5a0;
+    --accent2: #ff6b35;
+    --accent3: #7c6aff;
+    --text: #f0f0f5;
+    --muted: #7a7a9a;
+    --danger: #ff4757;
+    --warn: #ffd32a;
+    --success: #00e5a0;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* HEADER */
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+  .logo span { color: var(--accent); }
+  .status-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--danger);
+    box-shadow: 0 0 8px var(--danger);
+    transition: all 0.3s;
+  }
+  .status-dot.connected { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+
+  /* SETUP PANEL */
+  .setup-panel {
+    margin: 20px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+  }
+  .setup-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+  .input-group { margin-bottom: 14px; }
+  .input-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; display: block; font-family: 'DM Mono', monospace; }
+  .input-field {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .input-field:focus { border-color: var(--accent); }
+  .input-field::placeholder { color: var(--muted); }
+
+  .btn {
+    width: 100%;
+    padding: 14px;
+    border-radius: 12px;
+    border: none;
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: #0a0a0f;
+  }
+  .btn-primary:active { transform: scale(0.97); background: #00c988; }
+  .btn-secondary {
+    background: transparent;
+    color: var(--accent);
+    border: 1.5px solid var(--accent);
+    margin-top: 10px;
+  }
+  .btn-danger {
+    background: var(--danger);
+    color: white;
+  }
+
+  /* INFO BOX */
+  .info-box {
+    background: rgba(0,229,160,0.07);
+    border: 1px solid rgba(0,229,160,0.25);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 14px;
+    font-size: 13px;
+    color: var(--accent);
+    line-height: 1.6;
+  }
+  .info-box strong { display: block; margin-bottom: 4px; font-family: 'Syne', sans-serif; }
+
+  /* NAV TABS */
+  .nav-tabs {
+    display: flex;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    z-index: 100;
+  }
+  .nav-tab {
+    flex: 1;
+    padding: 12px 4px 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    background: none;
+    color: var(--muted);
+  }
+  .nav-tab.active { color: var(--accent); }
+  .nav-icon { font-size: 20px; display: block; }
+  .nav-label { font-size: 10px; font-family: 'DM Mono', monospace; margin-top: 2px; display: block; }
+
+  /* MAIN CONTENT */
+  .main { padding: 16px 16px 80px; }
+
+  /* PAGE */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* STATS */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+  .stat-card.green::before { background: var(--accent); }
+  .stat-card.orange::before { background: var(--accent2); }
+  .stat-card.purple::before { background: var(--accent3); }
+  .stat-card.red::before { background: var(--danger); }
+
+  .stat-val { font-family: 'Syne', sans-serif; font-size: 28px; font-weight: 800; }
+  .stat-label { font-size: 11px; color: var(--muted); margin-top: 4px; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: 1px; }
+
+  /* PRODUCT LIST */
+  .section-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+  .product-list { display: flex; flex-direction: column; gap: 10px; }
+  .product-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    animation: slideIn 0.3s ease;
+  }
+  @keyframes slideIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+  .product-sku {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    background: rgba(0,229,160,0.1);
+    padding: 4px 8px;
+    border-radius: 6px;
+    min-width: 70px;
+    text-align: center;
+  }
+  .product-info { flex: 1; }
+  .product-name { font-size: 14px; font-weight: 500; margin-bottom: 3px; }
+  .product-meta { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; }
+
+  .stock-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 6px 10px;
+    border-radius: 8px;
+    min-width: 42px;
+    text-align: center;
+  }
+  .stock-ok { background: rgba(0,229,160,0.15); color: var(--accent); }
+  .stock-low { background: rgba(255,211,42,0.15); color: var(--warn); }
+  .stock-out { background: rgba(255,71,87,0.15); color: var(--danger); }
+
+  /* SCANNER */
+  .scanner-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  #qr-reader {
+    width: 100% !important;
+    border: none !important;
+    background: var(--bg) !important;
+  }
+  #qr-reader video { border-radius: 0 !important; }
+  #qr-reader img { display: none !important; }
+  #qr-reader__dashboard_section_csr button {
+    background: var(--accent) !important;
+    color: #0a0a0f !important;
+    border: none !important;
+    border-radius: 10px !important;
+    padding: 10px 20px !important;
+    font-family: 'Syne', sans-serif !important;
+    font-weight: 700 !important;
+    cursor: pointer !important;
+  }
+  #qr-reader__status_span { color: var(--muted) !important; font-size: 12px !important; font-family: 'DM Mono', monospace !important; }
+  #qr-reader__header_message { color: var(--muted) !important; font-size: 12px !important; }
+  #qr-reader__filescan_input { display: none !important; }
+  #qr-reader__dashboard_section_fsr { display: none !important; }
+
+  .scan-result {
+    background: var(--card);
+    border: 1px solid var(--accent);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 16px;
+    display: none;
+  }
+  .scan-result.show { display: block; animation: slideIn 0.3s ease; }
+  .scan-result-title { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; color: var(--accent); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
+
+  /* DESPACHOS */
+  .dispatch-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 10px;
+    animation: slideIn 0.3s ease;
+  }
+  .dispatch-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .dispatch-order { font-family: 'DM Mono', monospace; font-size: 13px; color: var(--accent3); }
+  .dispatch-status {
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-weight: 500;
+  }
+  .status-pending { background: rgba(255,211,42,0.15); color: var(--warn); }
+  .status-ready { background: rgba(0,229,160,0.15); color: var(--accent); }
+  .status-error { background: rgba(255,71,87,0.15); color: var(--danger); }
+  .dispatch-customer { font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+  .dispatch-items { font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; }
+  .dispatch-error {
+    background: rgba(255,71,87,0.08);
+    border: 1px solid rgba(255,71,87,0.3);
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--danger);
+  }
+  .dispatch-actions { display: flex; gap: 8px; margin-top: 12px; }
+  .btn-sm {
+    flex: 1;
+    padding: 9px;
+    border-radius: 9px;
+    border: none;
+    font-family: 'Syne', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-sm-green { background: rgba(0,229,160,0.15); color: var(--accent); }
+  .btn-sm-red { background: rgba(255,71,87,0.15); color: var(--danger); }
+  .btn-sm-purple { background: rgba(124,106,255,0.15); color: var(--accent3); }
+
+  /* ALERT */
+  .alert {
+    position: fixed;
+    top: 70px; left: 16px; right: 16px;
+    z-index: 200;
+    background: var(--card);
+    border-radius: 12px;
+    padding: 14px 16px;
+    border-left: 3px solid var(--accent);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    transform: translateY(-10px);
+    opacity: 0;
+    transition: all 0.3s;
+    pointer-events: none;
+    font-size: 13px;
+  }
+  .alert.show { transform: translateY(0); opacity: 1; }
+  .alert.error { border-color: var(--danger); }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 300;
+    background: rgba(0,0,0,0.7);
+    display: flex; align-items: flex-end;
+    opacity: 0; pointer-events: none; transition: opacity 0.3s;
+  }
+  .modal-overlay.show { opacity: 1; pointer-events: all; }
+  .modal {
+    background: var(--surface);
+    border-radius: 20px 20px 0 0;
+    padding: 24px 20px 40px;
+    width: 100%;
+    transform: translateY(100%);
+    transition: transform 0.3s;
+    border-top: 1px solid var(--border);
+  }
+  .modal-overlay.show .modal { transform: translateY(0); }
+  .modal-title { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 800; margin-bottom: 20px; }
+  .modal-close { float: right; background: var(--card); border: none; color: var(--muted); width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; }
+
+  /* GUIDE */
+  .guide-step {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 20px;
+    align-items: flex-start;
+  }
+  .step-num {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #0a0a0f;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 14px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .step-content { flex: 1; }
+  .step-title { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+  .step-desc { font-size: 12px; color: var(--muted); line-height: 1.6; }
+  .step-code {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    margin-top: 6px;
+    word-break: break-all;
+  }
+
+  /* Spinner */
+  .spinner {
+    width: 20px; height: 20px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 8px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); }
+  .empty-icon { font-size: 40px; margin-bottom: 12px; }
+  .empty-text { font-size: 14px; }
+
+  .tag-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .tag { font-size: 11px; font-family: 'DM Mono', monospace; padding: 3px 8px; border-radius: 6px; background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
+
+  select.input-field { appearance: none; }
+  
+  .qty-control { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+  .qty-btn { width: 36px; height: 36px; border-radius: 50%; border: 1.5px solid var(--border); background: var(--bg); color: var(--text); font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+  .qty-btn:active { background: var(--accent); color: #0a0a0f; border-color: var(--accent); }
+  .qty-val { font-family: 'Syne', sans-serif; font-size: 24px; font-weight: 800; min-width: 40px; text-align: center; }
+</style>
+</head>
+<body>
+
+<!-- ALERT -->
+<div class="alert" id="alert"></div>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="logo">Stock<span>Flow</span></div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <span style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;" id="conn-label">Sin conexión</span>
+    <div class="status-dot" id="status-dot"></div>
+  </div>
+</header>
+
+<!-- MODAL GUÍA API -->
+<div class="modal-overlay" id="guide-modal">
+  <div class="modal">
+    <div class="modal-title">
+      <button class="modal-close" onclick="closeModal('guide-modal')">✕</button>
+      Obtener API Key de Shopify
+    </div>
+    <div class="guide-step">
+      <div class="step-num">1</div>
+      <div class="step-content">
+        <div class="step-title">Ve a tu Panel de Shopify</div>
+        <div class="step-desc">Inicia sesión en tu tienda en admin.shopify.com</div>
+      </div>
+    </div>
+    <div class="guide-step">
+      <div class="step-num">2</div>
+      <div class="step-content">
+        <div class="step-title">Configuración → Apps y canales</div>
+        <div class="step-desc">En el menú izquierdo, ve a <strong>Configuración</strong> y luego <strong>"Aplicaciones y canales de ventas"</strong></div>
+      </div>
+    </div>
+    <div class="guide-step">
+      <div class="step-num">3</div>
+      <div class="step-content">
+        <div class="step-title">Desarrollar apps → Crear app</div>
+        <div class="step-desc">Haz clic en <strong>"Desarrollar apps"</strong>, acepta los términos y luego <strong>"Crear una app"</strong>. Ponle el nombre "StockFlow"</div>
+      </div>
+    </div>
+    <div class="guide-step">
+      <div class="step-num">4</div>
+      <div class="step-content">
+        <div class="step-title">Configura los permisos</div>
+        <div class="step-desc">En <strong>"Configuración de la API de Admin"</strong>, activa estos permisos en modo Lectura/Escritura:</div>
+        <div class="tag-row">
+          <span class="tag">Inventario</span>
+          <span class="tag">Productos</span>
+          <span class="tag">Pedidos</span>
+          <span class="tag">Ubicaciones</span>
+          <span class="tag">Despachos</span>
+        </div>
+      </div>
+    </div>
+    <div class="guide-step">
+      <div class="step-num">5</div>
+      <div class="step-content">
+        <div class="step-title">Instala la app y copia el token</div>
+        <div class="step-desc">Haz clic en <strong>"Instalar app"</strong> y luego en la pestaña <strong>"Credenciales de la API"</strong>. Copia el <strong>Token de acceso de la API de Admin</strong></div>
+        <div class="step-code">shpat_xxxxxxxxxxxxxxxxxxxxxxxxxxxx</div>
+      </div>
+    </div>
+    <div class="guide-step">
+      <div class="step-num">6</div>
+      <div class="step-content">
+        <div class="step-title">Tu nombre de tienda</div>
+        <div class="step-desc">Es la parte antes de .myshopify.com en tu URL:</div>
+        <div class="step-code">mi-tienda.myshopify.com → mi-tienda</div>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="closeModal('guide-modal')" style="margin-top:8px;">¡Entendido, voy a configurar!</button>
+  </div>
+</div>
+
+<!-- MODAL AJUSTAR STOCK -->
+<div class="modal-overlay" id="stock-modal">
+  <div class="modal">
+    <div class="modal-title">
+      <button class="modal-close" onclick="closeModal('stock-modal')">✕</button>
+      Ajustar Inventario
+    </div>
+    <div id="stock-modal-body"></div>
+  </div>
+</div>
+
+<!-- PAGES -->
+<main class="main">
+
+  <!-- PAGE: CONFIGURACIÓN -->
+  <div class="page active" id="page-config">
+    <div class="info-box">
+      <strong>📦 Bienvenido a StockFlow</strong>
+      Conecta tu tienda Shopify para gestionar inventario, escanear QR y controlar despachos. ¿No tienes las credenciales aún?
+      <br><br>
+      <span onclick="openModal('guide-modal')" style="text-decoration:underline;cursor:pointer;font-weight:600;">Ver guía paso a paso →</span>
+    </div>
+
+    <div class="setup-panel">
+      <div class="setup-title">🔗 Conexión Shopify</div>
+      <div class="input-group">
+        <label class="input-label">NOMBRE DE TIENDA</label>
+        <input class="input-field" id="store-name" placeholder="wargo-sports (sin .myshopify.com)" />
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6;">
+        Serás redirigido a Shopify para autorizar el acceso de forma segura.
+      </div>
+      <button class="btn btn-primary" onclick="connectShopify()">
+        <span id="connect-btn-text">Conectar Shopify</span>
+      </button>
+      <button class="btn btn-secondary" onclick="loadDemoData()">Probar con datos demo</button>
+    </div>
+
+    <div class="setup-panel" id="connected-panel" style="display:none">
+      <div class="setup-title">✅ Tienda Conectada</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:12px;" id="store-info-text"></div>
+      <button class="btn btn-danger" onclick="disconnect()">Desconectar</button>
+    </div>
+  </div>
+
+  <!-- PAGE: INVENTARIO -->
+  <div class="page" id="page-inventory">
+    <div class="stats-grid" id="stats-grid">
+      <div class="stat-card green"><div class="stat-val" id="stat-total">—</div><div class="stat-label">Productos</div></div>
+      <div class="stat-card red"><div class="stat-val" id="stat-low">—</div><div class="stat-label">Stock Bajo</div></div>
+      <div class="stat-card orange"><div class="stat-val" id="stat-out">—</div><div class="stat-label">Agotados</div></div>
+      <div class="stat-card purple"><div class="stat-val" id="stat-ok">—</div><div class="stat-label">Disponibles</div></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+      <input class="input-field" id="search-input" placeholder="🔍 Buscar producto o SKU..." oninput="filterProducts()" style="flex:1" />
+      <button class="btn btn-secondary" style="width:auto;padding:0 16px;white-space:nowrap;font-size:13px;" onclick="loadInventory()">↻</button>
+    </div>
+    <div class="section-title">Inventario</div>
+    <div class="product-list" id="product-list">
+      <div class="empty-state"><div class="empty-icon">📦</div><div class="empty-text">Conecta tu tienda para ver el inventario</div></div>
+    </div>
+  </div>
+
+  <!-- PAGE: ESCÁNER QR -->
+  <div class="page" id="page-scanner">
+    <div class="section-title">Escanear Código QR / Barcode</div>
+    <div class="scan-result" id="scan-result">
+      <div class="scan-result-title">✓ Producto Encontrado</div>
+      <div id="scan-result-content"></div>
+    </div>
+    <div class="scanner-box">
+      <div id="qr-reader"></div>
+    </div>
+    <button class="btn btn-secondary" onclick="manualScan()">Ingresar SKU manualmente</button>
+  </div>
+
+  <!-- PAGE: DESPACHOS -->
+  <div class="page" id="page-dispatch">
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+      <select class="input-field" id="dispatch-filter" onchange="filterDispatches()" style="flex:1">
+        <option value="all">Todos los despachos</option>
+        <option value="error">Con errores</option>
+        <option value="pending">Pendientes</option>
+        <option value="ready">Listos</option>
+      </select>
+    </div>
+    <div class="section-title">Órdenes de Despacho</div>
+    <div id="dispatch-list">
+      <div class="empty-state"><div class="empty-icon">🚚</div><div class="empty-text">Conecta tu tienda para ver los despachos</div></div>
+    </div>
+  </div>
+
+</main>
+
+<!-- NAV -->
+<nav class="nav-tabs">
+  <button class="nav-tab active" onclick="showPage('config',this)"><span class="nav-icon">⚙️</span><span class="nav-label">Config</span></button>
+  <button class="nav-tab" onclick="showPage('inventory',this)"><span class="nav-icon">📦</span><span class="nav-label">Inventario</span></button>
+  <button class="nav-tab" onclick="showPage('scanner',this)"><span class="nav-icon">📷</span><span class="nav-label">Escanear</span></button>
+  <button class="nav-tab" onclick="showPage('dispatch',this)"><span class="nav-icon">🚚</span><span class="nav-label">Despachos</span></button>
+</nav>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════
+let state = {
+  connected: false,
+  storeName: '',
+  token: '',
+  products: [],
+  dispatches: [],
+  scanner: null
+};
+
+// Load saved config
+const saved = localStorage.getItem('stockflow_config');
+if (saved) {
+  const cfg = JSON.parse(saved);
+  state.storeName = cfg.storeName;
+  state.token = cfg.token;
+  document.getElementById('store-name').value = cfg.storeName;
+}
+
+// ═══════════════════════════════════════════════════════
+//  UI HELPERS
+// ═══════════════════════════════════════════════════════
+function showAlert(msg, type='ok') {
+  const el = document.getElementById('alert');
+  el.textContent = msg;
+  el.className = 'alert show' + (type==='error' ? ' error' : '');
+  el.style.borderColor = type==='error' ? 'var(--danger)' : 'var(--accent)';
+  setTimeout(() => el.className='alert', 2500);
+}
+
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  btn.classList.add('active');
+  if (name === 'scanner') initScanner();
+  else stopScanner();
+}
+
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+function setConnected(yes, storeName) {
+  state.connected = yes;
+  document.getElementById('status-dot').className = 'status-dot' + (yes?' connected':'');
+  document.getElementById('conn-label').textContent = yes ? storeName : 'Sin conexión';
+  document.getElementById('connected-panel').style.display = yes ? 'block' : 'none';
+  if (yes) document.getElementById('store-info-text').textContent = '🏪 '+storeName+'.myshopify.com';
+}
+
+// ═══════════════════════════════════════════════════════
+//  SHOPIFY VIA BACKEND PROXY
+// ═══════════════════════════════════════════════════════
+const BACKEND = 'https://stockflow-production-822a.up.railway.app';
+
+async function shopifyViaProxy(storeName, token, endpoint) {
+  const url = `${BACKEND}/api/shopify/${endpoint}?storeName=${storeName}&token=${token}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return await res.json();
+}
+
+async function connectShopify() {
+  const name = document.getElementById('store-name').value.trim();
+  if (!name) { showAlert('Ingresa el nombre de tu tienda', 'error'); return; }
+
+  const btn = document.getElementById('connect-btn-text');
+  btn.innerHTML = '<span class="spinner"></span>Conectando...';
+
+  // Primero intentar obtener token guardado en el servidor
+  try {
+    const res = await fetch(`${BACKEND}/api/token?shop=${name}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.token) {
+        state.storeName = name;
+        state.token = data.token;
+        state.connected = true;
+        localStorage.setItem('stockflow_config', JSON.stringify({storeName: name}));
+        const shopData = await shopifyViaProxy(name, data.token, 'shop.json');
+        setConnected(true, shopData.shop?.name || name);
+        showAlert('✅ Tienda conectada: ' + (shopData.shop?.name || name));
+        await loadInventory();
+        await loadOrders();
+        btn.textContent = 'Conectar Shopify';
+        return;
+      }
+    }
+  } catch(e) {}
+
+  // Si no hay token, iniciar flujo OAuth
+  btn.textContent = 'Conectar Shopify';
+  window.location.href = `${BACKEND}/auth?shop=${name}.myshopify.com`;
+}
+
+// Detectar si volvió del OAuth callback
+(async function checkOAuthReturn() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('connected') === 'true') {
+    const shop = params.get('shop');
+    if (shop) {
+      document.getElementById('store-name').value = shop;
+      try {
+        const res = await fetch(`${BACKEND}/api/token?shop=${shop}`);
+        if (res.ok) {
+          const data = await res.json();
+          state.storeName = shop;
+          state.token = data.token;
+          state.connected = true;
+          localStorage.setItem('stockflow_config', JSON.stringify({storeName: shop}));
+          const shopData = await shopifyViaProxy(shop, data.token, 'shop.json');
+          setConnected(true, shopData.shop?.name || shop);
+          showAlert('✅ Tienda conectada exitosamente');
+          await loadInventory();
+          await loadOrders();
+        }
+      } catch(e) {
+        showAlert('Error al finalizar conexión', 'error');
+      }
+      // Limpiar URL
+      window.history.replaceState({}, '', '/');
+    }
+  }
+})();
+
+function disconnect() {
+  state.connected = false;
+  state.products = [];
+  state.dispatches = [];
+  localStorage.removeItem('stockflow_config');
+  setConnected(false);
+  renderProducts([]);
+  renderDispatches([]);
+  showAlert('Desconectado');
+}
+
+// ═══════════════════════════════════════════════════════
+//  DEMO DATA
+// ═══════════════════════════════════════════════════════
+function loadDemoData() {
+  state.connected = true;
+  state.storeName = 'mi-tienda-demo';
+  setConnected(true, 'Mi Tienda Demo');
+  
+  state.products = [
+    { id:1, sku:'CAMP-001', name:'Camiseta Básica Blanca', inventory: 42, price: 14990, category:'Ropa' },
+    { id:2, sku:'CAMP-002', name:'Camiseta Estampada Negra', inventory: 3, price: 19990, category:'Ropa' },
+    { id:3, sku:'PANT-001', name:'Pantalón Jogger Gris', inventory: 0, price: 29990, category:'Ropa' },
+    { id:4, sku:'ZAPT-001', name:'Zapatillas Runner X1', inventory: 15, price: 59990, category:'Calzado' },
+    { id:5, sku:'ZAPT-002', name:'Zapatillas Urban Pro', inventory: 2, price: 69990, category:'Calzado' },
+    { id:6, sku:'ACCS-001', name:'Gorra Snapback', inventory: 28, price: 12990, category:'Accesorios' },
+    { id:7, sku:'ACCS-002', name:'Bolso Tote Canvas', inventory: 0, price: 24990, category:'Accesorios' },
+    { id:8, sku:'CAMP-003', name:'Hoodie Oversize Verde', inventory: 8, price: 39990, category:'Ropa' },
+  ];
+
+  state.dispatches = [
+    { id:'#1042', customer:'Carlos Muñoz', items:'2x Camiseta Básica, 1x Gorra', status:'error', error:'SKU incorrecto: CAMP-001 despachado como CAMP-002', date:'05/06/2026' },
+    { id:'#1043', customer:'María González', items:'1x Zapatillas Runner X1', status:'pending', error:null, date:'05/06/2026' },
+    { id:'#1044', customer:'Pedro Soto', items:'3x Hoodie Oversize Verde', status:'error', error:'Stock insuficiente: solo quedan 2 unidades', date:'04/06/2026' },
+    { id:'#1045', customer:'Ana Flores', items:'1x Pantalón Jogger Gris', status:'error', error:'Producto agotado al momento del despacho', date:'04/06/2026' },
+    { id:'#1046', customer:'Luis Torres', items:'2x Camiseta Estampada, 1x Bolso', status:'pending', error:null, date:'05/06/2026' },
+    { id:'#1047', customer:'Valentina Ruiz', items:'1x Gorra Snapback', status:'ready', error:null, date:'05/06/2026' },
+  ];
+
+  renderProducts(state.products);
+  renderDispatches(state.dispatches);
+  showAlert('✅ Datos de demo cargados');
+}
+
+// ═══════════════════════════════════════════════════════
+//  INVENTORY
+// ═══════════════════════════════════════════════════════
+async function loadInventory() {
+  if (!state.connected || state.storeName === 'mi-tienda-demo') {
+    renderProducts(state.products);
+    return;
+  }
+  try {
+    document.getElementById('product-list').innerHTML = '<div class="empty-state"><span class="spinner"></span> Cargando productos...</div>';
+    const data = await shopifyViaProxy(state.storeName, state.token, 'products.json?limit=50');
+    state.products = (data.products || []).map(p => ({
+      id: p.id, sku: p.variants[0]?.sku || '—',
+      name: p.title, inventory: p.variants[0]?.inventory_quantity || 0,
+      price: p.variants[0]?.price, category: p.product_type
+    }));
+    renderProducts(state.products);
+  } catch(e) {
+    showAlert('Error cargando inventario', 'error');
+  }
+}
+
+function renderProducts(products) {
+  const list = document.getElementById('product-list');
+  if (!products.length) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">📦</div><div class="empty-text">No hay productos</div></div>';
+    return;
+  }
+  const total = products.length;
+  const outStock = products.filter(p => p.inventory === 0).length;
+  const lowStock = products.filter(p => p.inventory > 0 && p.inventory <= 5).length;
+  const okStock = products.filter(p => p.inventory > 5).length;
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-out').textContent = outStock;
+  document.getElementById('stat-low').textContent = lowStock;
+  document.getElementById('stat-ok').textContent = okStock;
+
+  list.innerHTML = products.map(p => {
+    let cls = 'stock-ok', label = p.inventory;
+    if (p.inventory === 0) { cls = 'stock-out'; label = '✕'; }
+    else if (p.inventory <= 5) cls = 'stock-low';
+    return `
+    <div class="product-card" onclick="openStockModal(${p.id})">
+      <div class="product-sku">${p.sku}</div>
+      <div class="product-info">
+        <div class="product-name">${p.name}</div>
+        <div class="product-meta">${p.category||'—'} · $${Number(p.price||0).toLocaleString('es-CL')}</div>
+      </div>
+      <div class="stock-badge ${cls}">${label}</div>
+    </div>`;
+  }).join('');
+}
+
+function filterProducts() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  const filtered = state.products.filter(p =>
+    p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q)
+  );
+  renderProducts(filtered);
+}
+
+function openStockModal(id) {
+  const p = state.products.find(x => x.id === id);
+  if (!p) return;
+  let qty = p.inventory;
+  document.getElementById('stock-modal-body').innerHTML = `
+    <div style="margin-bottom:16px">
+      <div style="font-size:13px;color:var(--muted);font-family:'DM Mono',monospace;">${p.sku}</div>
+      <div style="font-size:18px;font-weight:600;margin-top:4px">${p.name}</div>
+    </div>
+    <div class="input-label">STOCK ACTUAL</div>
+    <div class="qty-control">
+      <button class="qty-btn" onclick="changeQty(-1,${id})">−</button>
+      <div class="qty-val" id="qty-val-${id}">${qty}</div>
+      <button class="qty-btn" onclick="changeQty(1,${id})">+</button>
+    </div>
+    <button class="btn btn-primary" style="margin-top:20px" onclick="saveStock(${id})">Guardar Cambio</button>
+  `;
+  openModal('stock-modal');
+}
+
+function changeQty(delta, id) {
+  const p = state.products.find(x => x.id === id);
+  if (!p) return;
+  p.inventory = Math.max(0, p.inventory + delta);
+  document.getElementById('qty-val-'+id).textContent = p.inventory;
+}
+
+async function saveStock(id) {
+  const p = state.products.find(x => x.id === id);
+  closeModal('stock-modal');
+  showAlert(`✅ Stock de "${p.name}" actualizado a ${p.inventory}`);
+  renderProducts(state.products);
+  // In real mode, would call Shopify Inventory Level API
+}
+
+// ═══════════════════════════════════════════════════════
+//  ORDERS / DISPATCHES
+// ═══════════════════════════════════════════════════════
+async function loadOrders() {
+  if (!state.dispatches.length) return;
+}
+
+function renderDispatches(dispatches) {
+  const list = document.getElementById('dispatch-list');
+  if (!dispatches.length) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">🚚</div><div class="empty-text">No hay despachos</div></div>';
+    return;
+  }
+  list.innerHTML = dispatches.map(d => `
+    <div class="dispatch-card">
+      <div class="dispatch-header">
+        <span class="dispatch-order">${d.id}</span>
+        <span class="dispatch-status ${d.status==='error'?'status-error':d.status==='ready'?'status-ready':'status-pending'}">
+          ${d.status==='error'?'⚠ Error':d.status==='ready'?'✓ Listo':'⏳ Pendiente'}
+        </span>
+      </div>
+      <div class="dispatch-customer">${d.customer}</div>
+      <div class="dispatch-items">${d.items} · ${d.date}</div>
+      ${d.error ? `<div class="dispatch-error">⚠️ ${d.error}</div>` : ''}
+      <div class="dispatch-actions">
+        <button class="btn-sm btn-sm-green" onclick="markReady('${d.id}')">✓ Listo</button>
+        <button class="btn-sm btn-sm-purple" onclick="verifyDispatch('${d.id}')">🔍 Verificar</button>
+        ${d.error ? `<button class="btn-sm btn-sm-red" onclick="reportError('${d.id}')">Corregir</button>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function filterDispatches() {
+  const f = document.getElementById('dispatch-filter').value;
+  if (f === 'all') renderDispatches(state.dispatches);
+  else renderDispatches(state.dispatches.filter(d => d.status === f));
+}
+
+function markReady(id) {
+  const d = state.dispatches.find(x => x.id === id);
+  if (d) { d.status = 'ready'; d.error = null; filterDispatches(); showAlert(`✅ ${id} marcado como listo`); }
+}
+function verifyDispatch(id) { showAlert(`🔍 Verificando ${id}...`); }
+function reportError(id) {
+  const d = state.dispatches.find(x => x.id === id);
+  if (d) { d.status = 'pending'; d.error = null; filterDispatches(); showAlert(`🔧 Error de ${id} registrado para corrección`); }
+}
+
+// ═══════════════════════════════════════════════════════
+//  QR SCANNER
+// ═══════════════════════════════════════════════════════
+function initScanner() {
+  if (state.scanner) return;
+  try {
+    state.scanner = new Html5Qrcode("qr-reader");
+    state.scanner.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 240, height: 240 } },
+      onScanSuccess,
+      () => {}
+    ).catch(e => {
+      document.getElementById('qr-reader').innerHTML =
+        '<div style="padding:30px;text-align:center;color:var(--muted);font-size:13px;">📷 Permite acceso a la cámara para escanear</div>';
+    });
+  } catch(e) {}
+}
+
+function stopScanner() {
+  if (state.scanner) {
+    state.scanner.stop().catch(()=>{});
+    state.scanner = null;
+  }
+}
+
+function onScanSuccess(code) {
+  stopScanner();
+  const product = state.products.find(p => p.sku === code || String(p.id) === code);
+  const result = document.getElementById('scan-result');
+  const content = document.getElementById('scan-result-content');
+  if (product) {
+    let stockClass = 'stock-ok';
+    if (product.inventory === 0) stockClass = 'stock-out';
+    else if (product.inventory <= 5) stockClass = 'stock-low';
+    content.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div>
+          <div style="font-size:16px;font-weight:600">${product.name}</div>
+          <div style="font-size:12px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:2px">SKU: ${product.sku}</div>
+        </div>
+        <div class="stock-badge ${stockClass}">${product.inventory}</div>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px">$${Number(product.price||0).toLocaleString('es-CL')} · ${product.category||'—'}</div>
+      <button class="btn btn-primary" onclick="openStockModal(${product.id});showPage('inventory',document.querySelector('.nav-tab:nth-child(2)'))">Ajustar Stock</button>
+    `;
+  } else {
+    content.innerHTML = `
+      <div style="color:var(--danger);margin-bottom:8px">⚠️ Código no encontrado: <strong>${code}</strong></div>
+      <div style="font-size:12px;color:var(--muted)">Este SKU no existe en tu inventario actual.</div>
+    `;
+  }
+  result.classList.add('show');
+  // Restart scanner after 3s
+  setTimeout(() => {
+    result.classList.remove('show');
+    initScanner();
+  }, 4000);
+}
+
+function manualScan() {
+  const sku = prompt('Ingresa el SKU del producto:');
+  if (sku) onScanSuccess(sku.trim().toUpperCase());
+}
+</script>
+</body>
+</html>

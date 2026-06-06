@@ -1,0 +1,16 @@
+name = "StockFlow"
+client_id = "66fe63479bcfc48ec1dee6c4282392ea"
+application_url = "https://stockflow-production-822a.up.railway.app"
+embedded = false
+
+[access_scopes]
+scopes = "read_products,write_products,read_inventory,write_inventory,read_locations"
+
+[auth]
+redirect_urls = ["https://stockflow-production-822a.up.railway.app/auth/callback"]
+
+[webhooks]
+api_version = "2026-04"
+
+[pos]
+embedded = false
